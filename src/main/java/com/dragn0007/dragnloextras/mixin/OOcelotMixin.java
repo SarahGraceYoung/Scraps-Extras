@@ -5,31 +5,27 @@ import com.dragn0007.dragnloextras.capabilities.*;
 import com.dragn0007.dragnloextras.effects.SEEffects;
 import com.dragn0007.dragnloextras.entity.ai.FleeRainGoal;
 import com.dragn0007.dragnloextras.entity.ai.SleepGoal;
-import com.dragn0007.dragnloextras.entity.ai.VaulterLeapAtTargetGoal;
 import com.dragn0007.dragnloextras.items.SEItems;
-import com.dragn0007.dragnloextras.network.SyncDirtyLayerPacket;
 import com.dragn0007.dragnloextras.network.SyncImmunityPacket;
-import com.dragn0007.dragnloextras.network.SyncSpikeCollarLayerPacket;
 import com.dragn0007.dragnloextras.network.SyncTraitPacket;
 import com.dragn0007.dragnloextras.util.*;
 import com.dragn0007.dragnpets.entities.POEntityTypes;
-import com.dragn0007.dragnpets.entities.dog.*;
-import com.dragn0007.dragnpets.entities.wolf.OWolf;
-import com.dragn0007.dragnpets.entities.wolf.OWolfMarkingLayer;
-import com.dragn0007.dragnpets.entities.wolf.OWolfModel;
-import com.dragn0007.dragnpets.util.PetsOverhaulCommonConfig;
+import com.dragn0007.dragnpets.entities.ai.DogFollowPackLeaderGoal;
+import com.dragn0007.dragnpets.entities.cat.*;
+import com.dragn0007.dragnpets.entities.ocelot.OOcelot;
+import com.dragn0007.dragnpets.entities.ocelot.OOcelotEyeLayer;
+import com.dragn0007.dragnpets.entities.ocelot.OOcelotMarkingLayer;
+import com.dragn0007.dragnpets.entities.ocelot.OOcelotModel;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.world.DifficultyInstance;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
-import net.minecraft.world.SimpleContainer;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.*;
-import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.ai.goal.LookAtPlayerGoal;
 import net.minecraft.world.entity.ai.goal.target.NearestAttackableTargetGoal;
 import net.minecraft.world.entity.animal.Animal;
@@ -40,7 +36,6 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.ServerLevelAccessor;
 import net.minecraft.world.phys.AABB;
-import net.minecraftforge.common.Tags;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Overwrite;
 import org.spongepowered.asm.mixin.Shadow;
@@ -57,34 +52,21 @@ import software.bernie.geckolib.core.animation.RawAnimation;
 import software.bernie.geckolib.core.object.PlayState;
 
 import java.util.List;
-import java.util.Objects;
 import java.util.Random;
 
-@Mixin(ODog.class)
-public abstract class ODogMixin extends TamableAnimal implements DirtyCapabilityInterface, ITraitByBreedTypeHolder, IHungerHolder, ISickModHolder {
+@Mixin(OOcelot.class)
+public abstract class OOcelotMixin extends TamableAnimal implements DirtyCapabilityInterface, ITraitByBreedTypeHolder, IHungerHolder, ISickModHolder {
 
-    //stop remapping my shit bitch i aint ask you to do all that. piss me off
-    @Shadow(remap = false) public abstract boolean isGuardDog();
-    @Shadow(remap = false) public abstract boolean isLivestockGuardian();
-    @Shadow(remap = false) public abstract boolean isHuntingDog();
-    @Shadow(remap = false) public abstract boolean isHerdingDog();
-    @Shadow(remap = false) public abstract boolean isBigGameHunter();
     @Shadow(remap = false) public abstract int getVariant();
     @Shadow(remap = false) public abstract boolean isWagging();
-    @Shadow(remap = false) public abstract boolean isCollared();
 
     @Shadow public abstract InteractionResult mobInteract(Player player, InteractionHand hand);
-
-    @Shadow(remap = false) public SimpleContainer inventory;
-
-    @Shadow
-    public abstract int getBreed();
 
     @Shadow
     public abstract int getOverlayVariant();
 
     @Shadow
-    public abstract int getFluff();
+    public abstract int getEyes();
 
     @Unique public boolean hungry = false;
     @Unique public boolean isHungry() {
@@ -113,23 +95,22 @@ public abstract class ODogMixin extends TamableAnimal implements DirtyCapability
     @Unique int livestockOverhaulScraps$beMeanTargetTick = random.nextInt(24000) + 1200;
     @Unique int livestockOverhaulScraps$becomeSickRand = random.nextInt(100);
 
-    public ODogMixin(EntityType<? extends ODogMixin> entityType, Level level) {
+    public OOcelotMixin(EntityType<? extends OOcelotMixin> entityType, Level level) {
         super(entityType, level);
         this.setHungry(false);
     }
 
     @Override
     public void setBaby(boolean p_146756_) {
-        this.setAge(p_146756_ ? -ScrapsExtrasCommonConfig.MEDIUM_GROWTH_TIME.get() : 0);
+        this.setAge(p_146756_ ? -ScrapsExtrasCommonConfig.SMALL_GROWTH_TIME.get() : 0);
     }
 
     @Inject(method = "registerGoals", at = @At("HEAD"))
     public void registerGoals(CallbackInfo ci) {
         super.registerGoals();
-        ODog self = (ODog) (Object) this;
+        OOcelot self = (OOcelot) (Object) this;
         this.goalSelector.addGoal(0, new SleepGoal(self));
         this.goalSelector.addGoal(1, new FleeRainGoal(self, 1.2F));
-        this.goalSelector.addGoal(3, new VaulterLeapAtTargetGoal(this, 0.4F));
         this.goalSelector.addGoal(1, new NearestAttackableTargetGoal<>(this, LivingEntity.class, 10, true, false, entity ->
                 (entity instanceof Player || entity instanceof Villager || entity instanceof Animal) && !this.isBaby() && this.hasEffect(SEEffects.RABIES.get())
         ));
@@ -155,7 +136,7 @@ public abstract class ODogMixin extends TamableAnimal implements DirtyCapability
                     sleepingCap = this.getCapability(SECapabilities.SLEEPING_CAPABILITY).orElse(null);
                     if (sleepingCap != null && sleepingCap.isSleeping()) {
                         this.goalSelector.getAvailableGoals().removeIf(goal -> goal.getGoal() instanceof LookAtPlayerGoal);
-//                        this.goalSelector.getAvailableGoals().removeIf(goal -> goal.getGoal() instanceof DogFollowPackLeaderGoal);
+                        this.goalSelector.getAvailableGoals().removeIf(goal -> goal.getGoal() instanceof DogFollowPackLeaderGoal);
                     }
                 }
             }
@@ -261,31 +242,6 @@ public abstract class ODogMixin extends TamableAnimal implements DirtyCapability
                         }
                     }
                 }
-
-                if (ScrapsExtrasCommonConfig.HYGIENE_SYSTEM.get()) {
-                    if (this.isTame())
-                        livestockOverhaulScraps$dirtyTick++;
-
-                    if (livestockOverhaulScraps$dirtyTick >= ScrapsExtrasCommonConfig.DIRTY_TICK.get() && this.hasEffect(SEEffects.DIRTY.get())) {
-                        this.getCapability(SECapabilities.DIRTY_CAPABILITY).ifPresent(cap -> {
-                            if (cap.isDirty()) {
-                                int amp = Objects.requireNonNull(this.getEffect(SEEffects.DIRTY.get())).getAmplifier();
-                                if (amp <= 4) {
-                                    this.addEffect(new MobEffectInstance(SEEffects.DIRTY.get(), MobEffectInstance.INFINITE_DURATION, amp + 1, false, false));
-                                }
-                            }
-                        });
-                    }
-
-                    if (livestockOverhaulScraps$dirtyTick >= ScrapsExtrasCommonConfig.DIRTY_TICK.get()) {
-                        this.getCapability(SECapabilities.DIRTY_CAPABILITY).ifPresent(cap -> {
-                            cap.setDirty(true);
-                            SyncDirtyLayerPacket.syncToTracking(this, true);
-                        });
-                        this.addEffect(new MobEffectInstance(SEEffects.DIRTY.get(), MobEffectInstance.INFINITE_DURATION, 0, false, false));
-                        livestockOverhaulScraps$dirtyTick = 0;
-                    }
-                }
             }
         }
 
@@ -301,21 +257,6 @@ public abstract class ODogMixin extends TamableAnimal implements DirtyCapability
     @Inject(method = "hurt", at = @At("HEAD"))
     public void hurt(DamageSource damageSource, float dmg, CallbackInfoReturnable<Boolean> cir) {
         super.hurt(damageSource, dmg);
-
-        if (ScrapsExtrasCommonConfig.SPIKE_COLLAR.get()) {
-            if (damageSource.getEntity() instanceof Mob mob) {
-                this.getCapability(SECapabilities.SPIKE_COLLAR_CAPABILITY).ifPresent(cap -> {
-                    if (cap.hasSpikeCollar()) {
-                        if (mob instanceof OWolf) {
-                            mob.hurt(this.damageSources().thorns(this), (float) 8 + this.random.nextInt(12));
-                        } else {
-                            mob.hurt(this.damageSources().thorns(this), (float) 2 + this.random.nextInt(8));
-                        }
-                        this.playSound(SoundEvents.THORNS_HIT, 0.5F, 1.0F);
-                    }
-                });
-            }
-        }
 
         if (ScrapsExtrasCommonConfig.AILMENT_SYSTEM.get()) {
             if (livestockOverhaulScraps$becomeSickRand <= livestockOverhaulScraps$becomeSickChance) {
@@ -344,37 +285,6 @@ public abstract class ODogMixin extends TamableAnimal implements DirtyCapability
         Item item = itemstack.getItem();
 
         if (!this.level().isClientSide) {
-            if (itemstack.is(SEItems.BRUSH.get())) {
-                livestockOverhaulScraps$dirtyTick = 0;
-                this.getCapability(SECapabilities.DIRTY_CAPABILITY).ifPresent(cap -> {
-                    cap.setDirty(false);
-                    SyncDirtyLayerPacket.syncToTracking(this, false);
-                });
-                if (this.hasEffect(SEEffects.DIRTY.get())) {
-                    this.removeEffect(SEEffects.DIRTY.get());
-                }
-                this.playSound(SoundEvents.BRUSH_GENERIC, 0.5f, 1f);
-                cir.setReturnValue(InteractionResult.sidedSuccess(this.level().isClientSide()));
-            } else if (itemstack.is(SEItems.COLLAR_SPIKES.get()) && this.isCollared()) {
-                this.getCapability(SECapabilities.SPIKE_COLLAR_CAPABILITY).ifPresent(cap -> {
-                    cap.setSpikeCollared(true);
-                    SyncSpikeCollarLayerPacket.syncToTracking(this, true);
-                });
-                this.playSound(SoundEvents.ARMOR_EQUIP_GENERIC, 0.5f, 1f);
-                cir.setReturnValue(InteractionResult.sidedSuccess(this.level().isClientSide()));
-            } else if (itemstack.is(Tags.Items.SHEARS)) {
-                this.getCapability(SECapabilities.SPIKE_COLLAR_CAPABILITY).ifPresent(cap -> {
-                    if (cap.hasSpikeCollar()) {
-                        cap.setSpikeCollared(false);
-                        SyncSpikeCollarLayerPacket.syncToTracking(this, false);
-                        this.spawnAtLocation(SEItems.COLLAR_SPIKES.get());
-                        this.playSound(SoundEvents.SHEEP_SHEAR, 0.5f, 1f);
-                    }
-                });
-                cir.setReturnValue(super.mobInteract(player, hand));
-//                cir.setReturnValue(InteractionResult.sidedSuccess(this.level().isClientSide()));
-            }
-
             if (itemstack.is(SEItems.KIBBLE.get())) {
                 this.livestockOverhaulScraps$hungryTick = 0;
                 if (this.isHungry()) {
@@ -451,85 +361,8 @@ public abstract class ODogMixin extends TamableAnimal implements DirtyCapability
         CompoundTag nbt = this.getPersistentData();
         if (!nbt.getBoolean("loextras_initialized")) {
             BaseImmunityHelper.setBaseImmunity(this);
-            BaseTraitHelper.setBaseTrait(this, true); //by breed is set to true unlike wolf -> error with by breed?
+            BaseTraitHelper.setBaseTrait(this, false);
             nbt.putBoolean("loextras_initialized", true);
-        }
-    }
-
-    @Unique
-    public void setTraitByBreedType() {
-        int trait = random.nextInt(Trait.values().length);
-
-        if (this.isLivestockGuardian()) { //more likely to have strong and docile traits
-            if (random.nextDouble() <= 0.15) {
-                this.getCapability(SECapabilities.TRAIT_CAPABILITY).ifPresent(cap -> {
-                    cap.setTrait(trait);
-                    SyncTraitPacket.syncToTracking(this, trait);
-                });
-            } else if (random.nextDouble() > 0.15) {
-                int[] traits = {0, 5, 6, 10};
-                int randomIndex = new Random().nextInt(traits.length);
-                this.getCapability(SECapabilities.TRAIT_CAPABILITY).ifPresent(cap -> {
-                    cap.setTrait(traits[randomIndex]);
-                    SyncTraitPacket.syncToTracking(this, traits[randomIndex]);
-                });
-            }
-        } else if (this.isGuardDog() || this.isHerdingDog()) { //more likely to have athletic traits
-            if (random.nextDouble() <= 0.15) {
-                this.getCapability(SECapabilities.TRAIT_CAPABILITY).ifPresent(cap -> {
-                    cap.setTrait(trait);
-                    SyncTraitPacket.syncToTracking(this, trait);
-                });
-            } else if (random.nextDouble() > 0.15) {
-                int[] traits = {3, 4, 6, 8};
-                int randomIndex = new Random().nextInt(traits.length);
-                this.getCapability(SECapabilities.TRAIT_CAPABILITY).ifPresent(cap -> {
-                    cap.setTrait(traits[randomIndex]);
-                    SyncTraitPacket.syncToTracking(this, traits[randomIndex]);
-                });
-            }
-        } else if (this.isHerdingDog()) { //more likely to have high-energy traits
-            if (random.nextDouble() <= 0.15) {
-                this.getCapability(SECapabilities.TRAIT_CAPABILITY).ifPresent(cap -> {
-                    cap.setTrait(trait);
-                    SyncTraitPacket.syncToTracking(this, trait);
-                });
-            } else if (random.nextDouble() > 0.15) {
-                int[] traits = {2, 5, 4, 12};
-                int randomIndex = new Random().nextInt(traits.length);
-                this.getCapability(SECapabilities.TRAIT_CAPABILITY).ifPresent(cap -> {
-                    cap.setTrait(traits[randomIndex]);
-                    SyncTraitPacket.syncToTracking(this, traits[randomIndex]);
-                });
-            }
-        } else if (this.isHuntingDog() || this.isBigGameHunter()) { //more likely to have all-rounder traits
-            if (random.nextDouble() <= 0.15) {
-                this.getCapability(SECapabilities.TRAIT_CAPABILITY).ifPresent(cap -> {
-                    cap.setTrait(trait);
-                    SyncTraitPacket.syncToTracking(this, trait);
-                });
-            } else if (random.nextDouble() > 0.15) {
-                int[] traits = {1, 2, 3, 7};
-                int randomIndex = new Random().nextInt(traits.length);
-                this.getCapability(SECapabilities.TRAIT_CAPABILITY).ifPresent(cap -> {
-                    cap.setTrait(traits[randomIndex]);
-                    SyncTraitPacket.syncToTracking(this, traits[randomIndex]);
-                });
-            }
-        } else { //more likely to have docile traits
-            if (random.nextDouble() <= 0.15) {
-                this.getCapability(SECapabilities.TRAIT_CAPABILITY).ifPresent(cap -> {
-                    cap.setTrait(trait);
-                    SyncTraitPacket.syncToTracking(this, trait);
-                });
-            } else if (random.nextDouble() > 0.15) {
-                int[] traits = {1, 4, 6, 9};
-                int randomIndex = new Random().nextInt(traits.length);
-                this.getCapability(SECapabilities.TRAIT_CAPABILITY).ifPresent(cap -> {
-                    cap.setTrait(traits[randomIndex]);
-                    SyncTraitPacket.syncToTracking(this, traits[randomIndex]);
-                });
-            }
         }
     }
 
@@ -537,8 +370,6 @@ public abstract class ODogMixin extends TamableAnimal implements DirtyCapability
     private <T extends GeoAnimatable> void predicate(AnimationState<T> tAnimationState, CallbackInfoReturnable<PlayState> cir) {
         double currentSpeed = this.getDeltaMovement().lengthSqr();
         double speedThreshold = 0.02;
-        double movementSpeed = this.getAttributeBaseValue(Attributes.MOVEMENT_SPEED);
-        double animationSpeed = Math.max(0.1, movementSpeed);
 
         AnimationController<T> controller = tAnimationState.getController();
 
@@ -550,10 +381,10 @@ public abstract class ODogMixin extends TamableAnimal implements DirtyCapability
         if (tAnimationState.isMoving()) {
             if (currentSpeed > speedThreshold) {
                 controller.setAnimation(RawAnimation.begin().then("run", Animation.LoopType.LOOP));
-                controller.setAnimationSpeed(Math.max(0.1, 0.8 * controller.getAnimationSpeed() + animationSpeed));
+                controller.setAnimationSpeed(1.4);
             } else {
                 controller.setAnimation(RawAnimation.begin().then("walk", Animation.LoopType.LOOP));
-                controller.setAnimationSpeed(Math.max(0.1, 0.8 * controller.getAnimationSpeed() + animationSpeed));
+                controller.setAnimationSpeed(1.4);
             }
         } else {
             if (sleepingCap != null && sleepingCap.isSleeping()) {
@@ -563,7 +394,7 @@ public abstract class ODogMixin extends TamableAnimal implements DirtyCapability
                 controller.setAnimation(RawAnimation.begin().then("sit", Animation.LoopType.LOOP));
                 controller.setAnimationSpeed(1.0);
             } else if (this.isWagging()) {
-                controller.setAnimation(RawAnimation.begin().then("wag", Animation.LoopType.LOOP));
+                controller.setAnimation(RawAnimation.begin().then("flick_tail", Animation.LoopType.LOOP));
                 controller.setAnimationSpeed(1.0);
             } else {
                 controller.setAnimation(RawAnimation.begin().then("idle", Animation.LoopType.LOOP));
@@ -573,221 +404,111 @@ public abstract class ODogMixin extends TamableAnimal implements DirtyCapability
     }
 
     /**
-     * @author SGK
-     * @reason Changing the @inject to @overwrite for dogs so maybe offspring inherit correctly like wolves do. we'll see
+     * @author DragN0007
+     * @reason why are you asking me this on my own fucking code. i hate robots
      */
     @Overwrite
     public AgeableMob getBreedOffspring(ServerLevel serverLevel, AgeableMob ageableMob) {
-        ODog pup;
+        OOcelot kitten;
+        OOcelot partner = (OOcelot) ageableMob;
+        kitten = POEntityTypes.O_OCELOT_ENTITY.get().create(serverLevel);
         ImmunityCapabilityInterface immunityCap = this.getCapability(SECapabilities.IMMUNITY_CAPABILITY).orElse(null);
         TraitCapabilityInterface traitCap = this.getCapability(SECapabilities.TRAIT_CAPABILITY).orElse(null);
-        if (ageableMob instanceof OWolf wolfPartner) {
-            pup = POEntityTypes.O_DOG_ENTITY.get().create(serverLevel);
-            ImmunityCapabilityInterface partnerimmunityCap = wolfPartner.getCapability(SECapabilities.IMMUNITY_CAPABILITY).orElse(null);
-            TraitCapabilityInterface partnertraitCap = wolfPartner.getCapability(SECapabilities.TRAIT_CAPABILITY).orElse(null);
-            ImmunityCapabilityInterface pupimmunityCap = pup.getCapability(SECapabilities.IMMUNITY_CAPABILITY).orElse(null);
-            TraitCapabilityInterface puptraitCap = pup.getCapability(SECapabilities.TRAIT_CAPABILITY).orElse(null);
+        ImmunityCapabilityInterface partnerimmunityCap = partner.getCapability(SECapabilities.IMMUNITY_CAPABILITY).orElse(null);
+        TraitCapabilityInterface partnertraitCap = partner.getCapability(SECapabilities.TRAIT_CAPABILITY).orElse(null);
+        ImmunityCapabilityInterface kittenimmunityCap = kitten.getCapability(SECapabilities.IMMUNITY_CAPABILITY).orElse(null);
+        TraitCapabilityInterface kittentraitCap = kitten.getCapability(SECapabilities.TRAIT_CAPABILITY).orElse(null);
 
-            ((ODog) pup).setBreed(25);
-
-            int variantChance = this.random.nextInt(100);
-            if (variantChance <  ((100 - LivestockOverhaulCommonConfig.COAT_CHANCE.get()) / 2)){
-                pup.setVariant(this.getVariant());
-            } else {
-                pup.setColor();
-            }
-
-            int overlayChance = this.random.nextInt(100);
-            if (overlayChance < ((100 - LivestockOverhaulCommonConfig.COAT_CHANCE.get()) / 2)) {
-                ((ODog) pup).setOverlayVariant(this.getOverlayVariant());
-            } else if (overlayChance < (100 - LivestockOverhaulCommonConfig.MARKING_CHANCE.get())) {
-                ((ODog) pup).setOverlayVariant(20);
-            } else {
-                ((ODog) pup).setMarking();
-            }
-
-            int traitChance = this.random.nextInt(100);
-            int trait;
-            if (traitChance < ((100 - LivestockOverhaulCommonConfig.OTHER_CHANCE.get()) / 2)) {
-                trait = traitCap.getTrait();
-                puptraitCap.setTrait(trait);
-                SyncTraitPacket.syncToTracking(pup, trait);
-            } else if (traitChance < (100 - LivestockOverhaulCommonConfig.OTHER_CHANCE.get())) {
-                trait = partnertraitCap.getTrait();
-                puptraitCap.setTrait(trait);
-                SyncTraitPacket.syncToTracking(pup, trait);
-            } else {
-                ((ITraitByBreedTypeHolder) pup).setTraitByBreedType();
-            }
-
-            int immunityChance = this.random.nextInt(100);
-            int immunity;
-            if (immunityChance < ((100 - LivestockOverhaulCommonConfig.OTHER_CHANCE.get()) / 2)) {
-                immunity = immunityCap.getImmunity();
-                if (random.nextDouble() < 0.25) {
-                    pupimmunityCap.setImmunity(immunity + random.nextInt(1,25));
-                    SyncImmunityPacket.syncToTracking(pup, immunity);
-                } else {
-                    pupimmunityCap.setImmunity(immunity);
-                    SyncImmunityPacket.syncToTracking(pup, immunity);
-                }
-            } else if (immunityChance < (100 - LivestockOverhaulCommonConfig.OTHER_CHANCE.get())) {
-                immunity = partnerimmunityCap.getImmunity();
-                if (random.nextDouble() < 0.25) {
-                    pupimmunityCap.setImmunity(immunity + random.nextInt(1,25));
-                    SyncImmunityPacket.syncToTracking(pup, immunity);
-                } else {
-                    pupimmunityCap.setImmunity(immunity);
-                    SyncImmunityPacket.syncToTracking(pup, immunity);
-                }
-            } else {
-                int baseImmunity = random.nextInt(1, 100);
-                pupimmunityCap.setImmunity(random.nextInt(baseImmunity));
-                SyncImmunityPacket.syncToTracking(pup, random.nextInt(baseImmunity));
-            }
-
-            ((ODog) pup).setCropped(1);
-            ((ODog) pup).setFluffChance();
-
-            ((ISickModHolder) pup).setSickChance(100 - pupimmunityCap.getImmunity());
-            if (immunityCap.getImmunity() > 100) {
-                immunityCap.setImmunity(100);
-                SyncImmunityPacket.syncToTracking(this, 100);
-            } else if (immunityCap.getImmunity() < 1) {
-                immunityCap.setImmunity(1);
-                SyncImmunityPacket.syncToTracking(this, 1);
-            }
-
+        // adding color genetics sgk
+        int variantChance = this.random.nextInt(100);
+        int variant;
+        if (variantChance < ((100 - LivestockOverhaulCommonConfig.COAT_CHANCE.get()) / 2)) {
+            variant = this.getVariant();
+        } else if (variantChance < ((100 - LivestockOverhaulCommonConfig.COAT_CHANCE.get()))) {
+            variant = partner.getVariant();
         } else {
-            ODog partner = (ODog) ageableMob;
-            pup = POEntityTypes.O_DOG_ENTITY.get().create(serverLevel);
-            ImmunityCapabilityInterface partnerimmunityCap = partner.getCapability(SECapabilities.IMMUNITY_CAPABILITY).orElse(null);
-            TraitCapabilityInterface partnertraitCap = partner.getCapability(SECapabilities.TRAIT_CAPABILITY).orElse(null);
-            ImmunityCapabilityInterface pupimmunityCap = pup.getCapability(SECapabilities.IMMUNITY_CAPABILITY).orElse(null);
-            TraitCapabilityInterface puptraitCap = pup.getCapability(SECapabilities.TRAIT_CAPABILITY).orElse(null);
+            variant = this.random.nextInt(OOcelotModel.Variant.values().length);
+        }
+        ((OOcelot) kitten).setVariant(variant);
 
-            // set dog breed
-            // adding in the breed chance modifier config
-            int breedChance = this.random.nextInt (100);
-            int breed;
-            if (this.getBreed() == partner.getBreed()) {
-                if (breedChance < (100 - LivestockOverhaulCommonConfig.BREED_CHANCE.get())) {
-                    breed = this.getBreed();
-                } else {
-                    breed = this.random.nextInt(DogBreed.values().length);
-                }
-            } else { //25% for parents, 50% for mutt
-                if (breedChance < ((100 - LivestockOverhaulCommonConfig.BREED_CHANCE.get()) / 4)) {
-                    breed = this.getBreed();
-                } else if (breedChance < ((100 - LivestockOverhaulCommonConfig.BREED_CHANCE.get()) / 2)) {
-                    breed = partner.getBreed();
-                } else if (breedChance < (100 - LivestockOverhaulCommonConfig.BREED_CHANCE.get())) {
-                    breed = 0; // mutt
-                } else {
-                    breed = this.random.nextInt(DogBreed.values().length);
-                }
-            }
-            ((ODog) pup).setBreed(breed);
+        int overlayChance = this.random.nextInt(100);
+        int overlay;
+        if (overlayChance < ((100 - LivestockOverhaulCommonConfig.MARKING_CHANCE.get()) / 2)) {
+            overlay = this.getOverlayVariant();
+        } else if (overlayChance < ((100 - LivestockOverhaulCommonConfig.MARKING_CHANCE.get()))) {
+            overlay = partner.getOverlayVariant();
+        } else {
+            overlay = this.random.nextInt(OOcelotMarkingLayer.Overlay.values().length);
+        }
+        ((OOcelot) kitten).setOverlayVariant(overlay);
 
-            // color 75% for parents, 25% for breed based
-            int variantChance = this.random.nextInt(100);
-            if (variantChance < ((100 - LivestockOverhaulCommonConfig.COAT_CHANCE.get()) * 3 / 8)) {
-                pup.setVariant(this.getVariant());
-            } else if (variantChance < ((100 - LivestockOverhaulCommonConfig.COAT_CHANCE.get()) * 6 / 8)) {
-                pup.setVariant(partner.getVariant());
-            } else if (variantChance < (100 - LivestockOverhaulCommonConfig.COAT_CHANCE.get())) { //remaining 1/4
-                pup.setColor();
+        int eyeChance = this.random.nextInt(100);
+        int eyes;
+        if (eyeChance < ((100 - LivestockOverhaulCommonConfig.OTHER_CHANCE.get()) / 2)) {
+            eyes = this.getEyes();
+        } else if (eyeChance < (100 - LivestockOverhaulCommonConfig.OTHER_CHANCE.get())) {
+            eyes = partner.getEyes();
+        } else {
+            eyes = this.random.nextInt(OOcelotEyeLayer.Eyes.values().length);
+        }
+        ((OOcelot) kitten).setEyes(eyes);
+
+        int traitChance = this.random.nextInt(100);
+        int trait;
+        if (traitChance < ((100 - LivestockOverhaulCommonConfig.OTHER_CHANCE.get()) / 2)) {
+            trait = traitCap.getTrait();
+            kittentraitCap.setTrait(trait);
+            SyncTraitPacket.syncToTracking(kitten, trait);
+        } else if (traitChance < (100 - LivestockOverhaulCommonConfig.OTHER_CHANCE.get())) {
+            trait = partnertraitCap.getTrait();
+            kittentraitCap.setTrait(trait);
+            SyncTraitPacket.syncToTracking(kitten, trait);
+        } else {
+            trait = random.nextInt(Trait.values().length);
+            kittentraitCap.setTrait(trait);
+            SyncTraitPacket.syncToTracking(kitten, trait);
+        }
+
+        int immunityChance = this.random.nextInt(100);
+        int immunity;
+        if (immunityChance < ((100 - LivestockOverhaulCommonConfig.OTHER_CHANCE.get()) / 2)) {
+            immunity = immunityCap.getImmunity();
+            if (random.nextDouble() < 0.25) {
+                kittenimmunityCap.setImmunity(immunity + random.nextInt(1,25));
+                SyncImmunityPacket.syncToTracking(kitten, immunity);
             } else {
-                pup.setVariant(this.random.nextInt(ODogModel.Variant.values().length));
+                kittenimmunityCap.setImmunity(immunity);
+                SyncImmunityPacket.syncToTracking(kitten, immunity);
             }
-
-            //markings 25% for parents, 50% for breed based
-            int overlayChance = this.random.nextInt(100);
-            if (overlayChance < ((100 - LivestockOverhaulCommonConfig.MARKING_CHANCE.get()) * 3 / 8)) {
-                pup.setOverlayVariant(this.getOverlayVariant());
-            } else if (overlayChance < ((100 - LivestockOverhaulCommonConfig.MARKING_CHANCE.get()) * 6 / 8)) {
-                pup.setOverlayVariant(partner.getOverlayVariant());
-            }else if (overlayChance < (100 - LivestockOverhaulCommonConfig.MARKING_CHANCE.get())) {//remaining 1/4
-                pup.setMarking();
+        } else if (immunityChance < (100 - LivestockOverhaulCommonConfig.OTHER_CHANCE.get())) {
+            immunity = partnerimmunityCap.getImmunity();
+            if (random.nextDouble() < 0.25) {
+                kittenimmunityCap.setImmunity(immunity + random.nextInt(1,25));
+                SyncImmunityPacket.syncToTracking(kitten, immunity);
             } else {
-                pup.setOverlayVariant(this.random.nextInt(DogMarkingOverlay.values().length));
+                kittenimmunityCap.setImmunity(immunity);
+                SyncImmunityPacket.syncToTracking(kitten, immunity);
             }
+        } else {
+            int baseImmunity = random.nextInt(1, 100);
+            kittenimmunityCap.setImmunity(random.nextInt(baseImmunity));
+            SyncImmunityPacket.syncToTracking(kitten, random.nextInt(baseImmunity));
+        }
 
-
-
-            int fluffyChance = this.random.nextInt(10);
-            int fluff;
-            if (fluffyChance < 5){
-                fluff = this.getFluff();
-            } else {
-                fluff = partner.getFluff();
-            }
-            pup.setFluff(fluff);
-
-            if (PetsOverhaulCommonConfig.ALLOW_CROPPED_DOG_SPAWNS.get()) {
-                pup.setCropChance();
-            } else {
-                pup.setCropped(0);
-            }
-
-            int traitChance = this.random.nextInt(100);
-            int trait;
-            if (traitChance < ((100 - LivestockOverhaulCommonConfig.OTHER_CHANCE.get()) / 2)) {
-                trait = traitCap.getTrait();
-                puptraitCap.setTrait(trait);
-                SyncTraitPacket.syncToTracking(pup, trait);
-            } else if (traitChance < (100 - LivestockOverhaulCommonConfig.OTHER_CHANCE.get())) {
-                trait = partnertraitCap.getTrait();
-                puptraitCap.setTrait(trait);
-                SyncTraitPacket.syncToTracking(pup, trait);
-            } else {
-                trait = random.nextInt(Trait.values().length);
-                puptraitCap.setTrait(trait);
-                SyncTraitPacket.syncToTracking(pup, trait);
-            }
-
-            int immunityChance = this.random.nextInt(100);
-            int immunity;
-            if (immunityChance < ((100 - LivestockOverhaulCommonConfig.OTHER_CHANCE.get()) / 2)) {
-                immunity = immunityCap.getImmunity();
-                if (random.nextDouble() < 0.25) {
-                    pupimmunityCap.setImmunity(immunity + random.nextInt(1,25));
-                    SyncImmunityPacket.syncToTracking(pup, immunity);
-                } else {
-                    pupimmunityCap.setImmunity(immunity);
-                    SyncImmunityPacket.syncToTracking(pup, immunity);
-                }
-            } else if (immunityChance < (100 - LivestockOverhaulCommonConfig.OTHER_CHANCE.get())) {
-                immunity = partnerimmunityCap.getImmunity();
-                if (random.nextDouble() < 0.25) {
-                    pupimmunityCap.setImmunity(immunity + random.nextInt(1,25));
-                    SyncImmunityPacket.syncToTracking(pup, immunity);
-                } else {
-                    pupimmunityCap.setImmunity(immunity);
-                    SyncImmunityPacket.syncToTracking(pup, immunity);
-                }
-            } else {
-                int baseImmunity = random.nextInt(1, 100);
-                pupimmunityCap.setImmunity(random.nextInt(baseImmunity));
-                SyncImmunityPacket.syncToTracking(pup, random.nextInt(baseImmunity));
-            }
-
-            ((ISickModHolder) pup).setSickChance(100 - pupimmunityCap.getImmunity());
-            if (immunityCap.getImmunity() > 100) {
-                immunityCap.setImmunity(100);
-                SyncImmunityPacket.syncToTracking(this, 100);
-            } else if (immunityCap.getImmunity() < 1) {
-                immunityCap.setImmunity(1);
-                SyncImmunityPacket.syncToTracking(this, 1);
-            }
+        BabyTraitHelper.setTraitEffect(kitten);
+        ((ISickModHolder) kitten).setSickChance(100 - kittenimmunityCap.getImmunity());
+        if (immunityCap.getImmunity() > 100) {
+            immunityCap.setImmunity(100);
+            SyncImmunityPacket.syncToTracking(this, 100);
+        } else if (immunityCap.getImmunity() < 1) {
+            immunityCap.setImmunity(1);
+            SyncImmunityPacket.syncToTracking(this, 1);
         }
 
         CompoundTag nbt = this.getPersistentData();
         nbt.putBoolean("loextras_initialized", true);
-        BabyTraitHelper.setTraitEffect(pup);
-        pup.setODogAttributes();
-        pup.setGender(random.nextInt(DogBase.Gender.values().length));
-        return pup;
+        kitten.setGender(random.nextInt(OOcelot.Gender.values().length));
+        return kitten;
     }
 
 }
